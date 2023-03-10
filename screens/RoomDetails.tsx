@@ -75,14 +75,17 @@ export default function RoomDetails({ navigation, route }: any) {
   };
 
   const deleteField = async (index: number) => {
-    const value = await AsyncStorage.getItem("@fields");
-    const storedFields = value ? (JSON.parse(value) as any[]) : [];
-    storedFields.splice(index - 1, 1);
-    await AsyncStorage.setItem("@fields", JSON.stringify(storedFields));
+    if (index === 0) Alert.alert("Вы не можете удалить это поле");
+    else {
+      const value = await AsyncStorage.getItem("@fields");
+      const storedFields = value ? (JSON.parse(value) as any[]) : [];
+      storedFields.splice(index - 1, 1);
+      await AsyncStorage.setItem("@fields", JSON.stringify(storedFields));
 
-    const updatedFields = [...fields];
-    updatedFields.splice(index, 1);
-    setFields(updatedFields);
+      const updatedFields = [...fields];
+      updatedFields.splice(index, 1);
+      setFields(updatedFields);
+    }
   };
 
   useEffect(() => {
@@ -123,19 +126,23 @@ export default function RoomDetails({ navigation, route }: any) {
 
   const extendX = (value: number) => {
     setPlayground((field: any) => {
-      const updatedField: any[] = JSON.parse(JSON.stringify(field))
-      updatedField.forEach((row: any[]) => value > 0 ? row.push(0) : row.pop())
-      return updatedField
-    })
-  }
+      const updatedField: any[] = JSON.parse(JSON.stringify(field));
+      updatedField.forEach((row: any[]) =>
+        value > 0 ? row.push(0) : row.pop()
+      );
+      return updatedField;
+    });
+  };
 
   const extendY = (value: number) => {
     setPlayground((field: any) => {
-      const updatedField: any[] = JSON.parse(JSON.stringify(field))
-      value > 0 ? updatedField.push(Array(updatedField[0].length).fill(0)) : updatedField.pop()
-      return updatedField
-    })
-  }
+      const updatedField: any[] = JSON.parse(JSON.stringify(field));
+      value > 0
+        ? updatedField.push(Array(updatedField[0].length).fill(0))
+        : updatedField.pop();
+      return updatedField;
+    });
+  };
 
   return (
     <ScrollView
@@ -157,9 +164,24 @@ export default function RoomDetails({ navigation, route }: any) {
       >
         Редактор поля
       </Text>
-      <View style={{ maxHeight: 200 }}>
-        <MapList onSet={setPlayground} fields={fields} onDelete={deleteField} />
-      </View>
+      <View
+        style={{
+          width: "100%",
+          height: 2,
+          backgroundColor: "lightgrey",
+          marginTop: 20,
+          marginBottom: 5,
+        }}
+      ></View>
+      <MapList onSet={setPlayground} fields={fields} onDelete={deleteField} />
+      <View
+        style={{
+          width: "100%",
+          height: 2,
+          backgroundColor: "lightgrey",
+          marginBottom: 50,
+        }}
+      ></View>
 
       {playground && (
         <>
@@ -185,12 +207,12 @@ export default function RoomDetails({ navigation, route }: any) {
                   justifyContent: "center",
                   alignItems: "center",
                   flexDirection: "row",
-                  marginLeft: 'auto',
+                  marginLeft: "auto",
                   gap: 15,
                 }}
               >
                 <TouchableOpacity
-                onPress={() => extendX(-1)}
+                  onPress={() => extendX(-1)}
                   style={{ backgroundColor: "grey", borderRadius: 5 }}
                 >
                   <Entypo name="chevron-left" size={32} color="lightgrey" />
@@ -199,7 +221,7 @@ export default function RoomDetails({ navigation, route }: any) {
                   {playground[0].length}
                 </Text>
                 <TouchableOpacity
-                onPress={() => extendX(1)}
+                  onPress={() => extendX(1)}
                   style={{ backgroundColor: "grey", borderRadius: 5 }}
                 >
                   <Entypo name="chevron-right" size={32} color="lightgrey" />
@@ -210,7 +232,8 @@ export default function RoomDetails({ navigation, route }: any) {
                 width={screenWidth / 1.2}
                 onClick={handleClick}
               />
-              <View style={{marginTop: 10}}>
+
+              <View style={{ marginTop: 10 }}>
                 <Actions
                   currentAction={currentAction}
                   setCurrentAction={setCurrentAction}
@@ -223,12 +246,12 @@ export default function RoomDetails({ navigation, route }: any) {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                marginBottom: 'auto',
+                marginBottom: "auto",
                 gap: 10,
               }}
             >
               <TouchableOpacity
-              onPress={() => extendY(-1)}
+                onPress={() => extendY(-1)}
                 style={{ backgroundColor: "grey", borderRadius: 5 }}
               >
                 <Entypo name="chevron-up" size={32} color="lightgrey" />
@@ -237,34 +260,34 @@ export default function RoomDetails({ navigation, route }: any) {
                 {playground.length}
               </Text>
               <TouchableOpacity
-              onPress={() => extendY(1)}
+                onPress={() => extendY(1)}
                 style={{ backgroundColor: "grey", borderRadius: 5 }}
               >
                 <Entypo name="chevron-down" size={32} color="lightgrey" />
               </TouchableOpacity>
             </View>
           </View>
-
           <TouchableOpacity
-            style={{
-              ...styles.button,
-              borderWidth: 5,
-              marginTop: 50,
-            }}
-            onPress={saveField}
-          >
-            <Text
-              style={{
-                ...styles.buttonText,
-              }}
-            >
-              Сохранить поле
-            </Text>
-          </TouchableOpacity>
+                  style={{
+                    ...styles.button,
+                    borderWidth: 5,
+                    marginTop: 10
+                  }}
+                  onPress={saveField}
+                >
+                  <Text
+                    style={{
+                      ...styles.buttonText,
+                    }}
+                  >
+                    Сохранить поле
+                  </Text>
+                </TouchableOpacity>
           <TouchableOpacity
             style={{
               ...styles.button,
               backgroundColor: "#41d4f0d6",
+              marginTop: 20,
             }}
             onPress={() => {
               if (roomCode) {
