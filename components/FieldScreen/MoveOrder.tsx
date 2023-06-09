@@ -1,7 +1,8 @@
-import { View, Text, Animated } from "react-native";
-import React, { useEffect, useRef } from "react";
+import { View, Text, Animated, Dimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
 import Field from "./../../game_logic/Field";
 import { animate } from "./../../utils/animate";
+import { makeMediumHaptic } from "./../../utils/haptics";
 
 const getPx = (count: number) => {
   let firstPx = -40 * (count - 1);
@@ -12,14 +13,14 @@ export default function MoveOrder({
   orderData,
   game,
   names_mapping,
+  timeoutCounter
 }: {
   orderData: any;
   game: Field;
   names_mapping: any;
+  timeoutCounter: number;
 }) {
   const translateAnimatedValue = useRef(new Animated.Value(0)).current;
-
-  const scores = game.getScores();
 
   useEffect(() => {
     const pxs = getPx(orderData["order"].length);
@@ -38,10 +39,29 @@ export default function MoveOrder({
           width: "100%",
           justifyContent: "center",
           alignItems: "center",
-          //   gap: 10,
           height: 70,
+          marginTop: "20%",
+          marginBottom: "10%",
         }}
       >
+        {timeoutCounter > 0 && (
+          <View
+            style={{
+              position: "absolute",
+              zIndex: 10,
+              elevation: 10,
+              width: "50%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              top: -60,
+            }}
+          >
+            <Text style={{ fontSize: 24, color: "lightgrey" }}>
+              {timeoutCounter}
+            </Text>
+          </View>
+        )}
         <Animated.View
           style={{
             backgroundColor: "grey",
@@ -49,9 +69,7 @@ export default function MoveOrder({
             width: 90,
             height: 110,
             position: "absolute",
-            transform: [
-              { translateX: translateAnimatedValue },
-            ],
+            transform: [{ translateX: translateAnimatedValue }],
           }}
         ></Animated.View>
         {orderData["order"].map((uid: string) => {
@@ -69,11 +87,11 @@ export default function MoveOrder({
               }}
             >
               <Text
-              numberOfLines={1}
-              ellipsizeMode='clip'            
+                numberOfLines={1}
+                ellipsizeMode="clip"
                 style={{
                   color: "lightgrey",
-                  fontSize: 20,
+                  fontSize: 14,
                   fontWeight: "700",
                   marginBottom: 5,
                 }}
@@ -90,7 +108,7 @@ export default function MoveOrder({
                   transform: [{ translateY: 10 }],
                 }}
               >
-                {scores[uid]}
+                {game.scores[uid]}
               </Text>
             </View>
           );

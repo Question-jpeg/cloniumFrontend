@@ -9,6 +9,8 @@ export const getExampleFields = () => {
     if (i < 10) tempMap10.push(Array(10).fill(0));
   }
 
+  tempMap8[2][2] = 'p'
+  tempMap8[5][5] = 'p'
   return [tempMap8]
 };
 

@@ -1,22 +1,11 @@
 import Chip from "../game_logic/Chip";
-import { Ionicons } from "@expo/vector-icons";
-import React from "react";
 import { colorMapping } from "../game_logic/config";
+import { ChipTypes } from "./ChipTypes";
 
 export const renderEmptyPlayer = (cellSize: number) => {
-  const chip = new Chip("player", 0);
+  const chip = new Chip("player", 0, ChipTypes.emptyPlayer);
 
-  return (
-    <>
-      <Ionicons
-        name="ios-person"
-        color="grey"
-        size={cellSize / 2.5}
-        style={{ position: "absolute", zIndex: 1 }}
-      />
-      {chip.render({ player: colorMapping["player"] }, cellSize)}
-    </>
-  );
+  return chip.render({ player: colorMapping["player"] }, cellSize);
 };
 
 export const renderEmptyChip = (cellSize: number, value: number) => {
@@ -24,3 +13,19 @@ export const renderEmptyChip = (cellSize: number, value: number) => {
 
   return chip.render({ neutral: colorMapping["neutral"] }, cellSize);
 };
+
+export const renderJumpChip = (
+  type: ChipTypes,
+  power: number,
+  cellSize: number,
+) => {
+  const chip = new Chip("neutral", 0, type, power);
+
+  return chip.render({ neutral: colorMapping["neutral"] }, cellSize);
+};
+
+export const renderBombChip = (cellSize: number) => {
+  const chip = new Chip('neutral', 0, ChipTypes.bomb)
+
+  return chip.render({ neutral: colorMapping["neutral"] }, cellSize);
+}

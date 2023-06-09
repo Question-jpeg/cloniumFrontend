@@ -2,11 +2,9 @@ import {
   ScrollView,
   Dimensions,
   View,
-  TextInput,
   StyleSheet,
   TouchableOpacity,
   Text,
-  KeyboardType,
   Alert,
 } from "react-native";
 import React, { useRef, useState, useEffect, useContext } from "react";
@@ -18,7 +16,11 @@ import { showNotification } from "./../utils/showNotification";
 import { getExampleFields } from "./../components/RoomDetailsScreen/playgrounds";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Actions from "../components/RoomDetailsScreen/Actions";
-import { Entypo } from "@expo/vector-icons";
+import { Entypo, MaterialIcons } from "@expo/vector-icons";
+import { makeMediumHaptic } from "./../utils/haptics";
+import { ChipTypes } from "../utils/ChipTypes";
+import { ActionTypes } from "../utils/ActionTypes";
+import { colors } from "./../game_logic/config";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -29,18 +31,20 @@ export default function RoomDetails({ navigation, route }: any) {
   const [fields, setFields] = useState<any>([]);
   const [roomCode, setRoomCode] = useState<string>();
   const [playground, setPlayground] = useState<any[][]>();
-  const [currentAction, setCurrentAction] = useState<
-    "cell" | "player" | "chip"
-  >("cell");
+  const [currentAction, setCurrentAction] = useState<ActionTypes>(
+    ActionTypes.cell
+  );
+  const [secForMove, setSecForMove] = useState<number | null>(null);
+  const [fieldSaveDisabled, setFieldSaveDisabled] = useState<boolean>();
 
   const handleClick = (i: number, j: number) => {
     setPlayground((field: any) => {
       const newField = JSON.parse(JSON.stringify(field));
       const cell = newField[i][j];
-      if (currentAction === "cell") {
+      if (currentAction === ActionTypes.cell) {
         if (cell !== null) newField[i][j] = null;
         else newField[i][j] = 0;
-      } else if (currentAction === "player") {
+      } else if (currentAction === ActionTypes.player) {
         let countOfPlayer = 0;
 
         newField.forEach((row: any) =>
@@ -52,9 +56,63 @@ export default function RoomDetails({ navigation, route }: any) {
         if (cell === "p") newField[i][j] = 0;
         else if (countOfPlayer < 4) newField[i][j] = "p";
         else Alert.alert("Вы не можете добавить более 4 игроков на поле");
-      } else if (![null, "p"].includes(cell))
-        newField[i][j] = (newField[i][j] + 1) % 4;
-      else newField[i][j] = 1;
+      } else if (currentAction === ActionTypes.chip) {
+        if (![null, "p"].includes(cell))
+          newField[i][j] = (newField[i][j] + 1) % 4;
+        else newField[i][j] = 1;
+      } else if (currentAction === ActionTypes.bomb) {
+        if (cell === "b") newField[i][j] = 0;
+        else newField[i][j] = "b";
+      } else if (
+        [ActionTypes.jump, ActionTypes.jumpBomb].includes(currentAction)
+      ) {
+        const types =
+          currentAction === ActionTypes.jump
+            ? [
+                ChipTypes.jumpTop,
+                ChipTypes.jumpRight,
+                ChipTypes.jumpDown,
+                ChipTypes.jumpLeft,
+              ]
+            : [
+                ChipTypes.jumpBombTop,
+                ChipTypes.jumpBombRight,
+                ChipTypes.jumpBombDown,
+                ChipTypes.jumpBombLeft,
+              ];
+
+        if (cell && cell.toString().length >= 3) {
+          const cellStr = cell.toString();
+          const cellInfo = cellStr.split("-");
+          const cellType = Number.parseInt(cellInfo[0]);
+          const nextType = types[(types.indexOf(cellType) + 1) % 4];
+          if ([ChipTypes.jumpTop, ChipTypes.jumpBombTop].includes(nextType))
+            newField[i][j] = 0;
+          else newField[i][j] = `${nextType}-${cellInfo[1]}`;
+        } else {
+          newField[i][j] = `${types[0]}-1`;
+        }
+      }
+
+      return newField;
+    });
+  };
+
+  const handleLongPress = (i: number, j: number) => {
+    makeMediumHaptic();
+    setPlayground((field: any) => {
+      const newField = JSON.parse(JSON.stringify(field));
+      const cell = newField[i][j];
+      const cellInfo =
+        cell && cell.toString().length >= 3 ? cell.split("-") : null;
+      if (
+        cellInfo &&
+        [ActionTypes.jumpBomb, ActionTypes.jump].includes(currentAction)
+      ) {
+        if (cellInfo[1] !== "3")
+          newField[i][j] = `${cellInfo[0]}-${Number.parseInt(cellInfo[1]) + 1}`;
+        else newField[i][j] = 0;
+      }
       return newField;
     });
   };
@@ -67,11 +125,17 @@ export default function RoomDetails({ navigation, route }: any) {
   };
 
   const saveField = async () => {
-    const value = await AsyncStorage.getItem("@fields");
-    const storedFields = value ? (JSON.parse(value) as any[]) : [];
-    storedFields.push(playground);
-    await AsyncStorage.setItem("@fields", JSON.stringify(storedFields));
-    setFields((flds: any) => [...flds, JSON.parse(JSON.stringify(playground))]);
+    if (!saveDisabled()) {
+      const value = await AsyncStorage.getItem("@fields");
+      const storedFields = value ? (JSON.parse(value) as any[]) : [];
+      storedFields.push(playground);
+      await AsyncStorage.setItem("@fields", JSON.stringify(storedFields));
+      setFields((flds: any) => [
+        ...flds,
+        JSON.parse(JSON.stringify(playground)),
+      ]);
+    }
+    setFieldSaveDisabled(true);
   };
 
   const deleteField = async (index: number) => {
@@ -106,7 +170,7 @@ export default function RoomDetails({ navigation, route }: any) {
     );
 
     return function cleanup() {
-      socket.send(JSON.stringify({ type: "destroy_room", data: {} }));
+      socket.send(JSON.stringify({ type: "leave_room", data: {} }));
     };
   }, []);
 
@@ -127,9 +191,11 @@ export default function RoomDetails({ navigation, route }: any) {
   const extendX = (value: number) => {
     setPlayground((field: any) => {
       const updatedField: any[] = JSON.parse(JSON.stringify(field));
+
       updatedField.forEach((row: any[]) =>
         value > 0 ? row.push(0) : row.pop()
       );
+
       return updatedField;
     });
   };
@@ -137,12 +203,46 @@ export default function RoomDetails({ navigation, route }: any) {
   const extendY = (value: number) => {
     setPlayground((field: any) => {
       const updatedField: any[] = JSON.parse(JSON.stringify(field));
-      value > 0
-        ? updatedField.push(Array(updatedField[0].length).fill(0))
-        : updatedField.pop();
+
+      if (value > 0) {
+        updatedField.push(Array(updatedField[0].length).fill(0));
+      } else updatedField.pop();
+
       return updatedField;
     });
   };
+
+  const isShortXDisabled = () =>
+    playground![0].length < 5 || playground![0].length === playground!.length;
+
+  const isExtendXDisabled = () => playground![0].length > 14;
+
+  const isShortYDisabled = () => playground!.length < 5;
+
+  const isExtendYDisabled = () =>
+    playground!.length > 14 || playground!.length === playground![0].length;
+
+  const saveDisabled = () => {
+    for (let field of fields) {
+      let isEqual = true;
+      for (let i = 0; i < field.length; i++) {
+        if (isEqual)
+          for (let j = 0; j < field[i].length; j++) {
+            if (field[i][j] !== playground![i][j]) {
+              isEqual = false;
+              break;
+            }
+          }
+        else break;
+      }
+      if (isEqual) return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (playground) setFieldSaveDisabled(false);
+  }, [playground]);
 
   return (
     <ScrollView
@@ -151,7 +251,6 @@ export default function RoomDetails({ navigation, route }: any) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        // height: "100%",
         paddingTop: "20%",
       }}
     >
@@ -179,7 +278,7 @@ export default function RoomDetails({ navigation, route }: any) {
           width: "100%",
           height: 2,
           backgroundColor: "lightgrey",
-          marginBottom: 50,
+          marginBottom: 20,
         }}
       ></View>
 
@@ -212,8 +311,40 @@ export default function RoomDetails({ navigation, route }: any) {
                 }}
               >
                 <TouchableOpacity
+                  onPress={saveField}
+                  disabled={fieldSaveDisabled}
+                  style={{
+                    flex: 1,
+                    backgroundColor: fieldSaveDisabled ? "grey" : colors.blue,
+                    opacity: fieldSaveDisabled ? 0.5 : 1,
+                    borderRadius: 5,
+                    padding: 5,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 5,
+                  }}
+                >
+                  {fieldSaveDisabled ? (
+                    <MaterialIcons name="check" size={24} color="white" />
+                  ) : (
+                    <MaterialIcons name="save" size={24} color="white" />
+                  )}
+                  <Text
+                    style={{ color: "white", fontWeight: "700", fontSize: 16 }}
+                  >
+                    {fieldSaveDisabled ? "Сохранено!" : "Сохранить"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={isShortXDisabled()}
                   onPress={() => extendX(-1)}
-                  style={{ backgroundColor: "grey", borderRadius: 5 }}
+                  style={{
+                    backgroundColor: "grey",
+                    borderRadius: 5,
+                    opacity: isShortXDisabled() ? 0.2 : 1,
+                  }}
                 >
                   <Entypo name="chevron-left" size={32} color="lightgrey" />
                 </TouchableOpacity>
@@ -221,8 +352,13 @@ export default function RoomDetails({ navigation, route }: any) {
                   {playground[0].length}
                 </Text>
                 <TouchableOpacity
+                  disabled={isExtendXDisabled()}
                   onPress={() => extendX(1)}
-                  style={{ backgroundColor: "grey", borderRadius: 5 }}
+                  style={{
+                    backgroundColor: "grey",
+                    borderRadius: 5,
+                    opacity: isExtendXDisabled() ? 0.2 : 1,
+                  }}
                 >
                   <Entypo name="chevron-right" size={32} color="lightgrey" />
                 </TouchableOpacity>
@@ -231,6 +367,7 @@ export default function RoomDetails({ navigation, route }: any) {
                 instruction={playground}
                 width={screenWidth / 1.2}
                 onClick={handleClick}
+                onLongPress={handleLongPress}
               />
 
               <View style={{ marginTop: 10 }}>
@@ -251,8 +388,13 @@ export default function RoomDetails({ navigation, route }: any) {
               }}
             >
               <TouchableOpacity
+                disabled={isShortYDisabled()}
                 onPress={() => extendY(-1)}
-                style={{ backgroundColor: "grey", borderRadius: 5 }}
+                style={{
+                  backgroundColor: "grey",
+                  borderRadius: 5,
+                  opacity: isShortYDisabled() ? 0.2 : 1,
+                }}
               >
                 <Entypo name="chevron-up" size={32} color="lightgrey" />
               </TouchableOpacity>
@@ -260,29 +402,74 @@ export default function RoomDetails({ navigation, route }: any) {
                 {playground.length}
               </Text>
               <TouchableOpacity
+                disabled={isExtendYDisabled()}
                 onPress={() => extendY(1)}
-                style={{ backgroundColor: "grey", borderRadius: 5 }}
+                style={{
+                  backgroundColor: "grey",
+                  borderRadius: 5,
+                  opacity: isExtendYDisabled() ? 0.2 : 1,
+                }}
               >
                 <Entypo name="chevron-down" size={32} color="lightgrey" />
               </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity
+          <View
+            style={{
+              width: "100%",
+              height: 2,
+              backgroundColor: "lightgrey",
+              marginTop: 10,
+            }}
+          ></View>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-evenly",
+              width: "100%",
+              paddingHorizontal: "10%",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Text style={{ color: "lightgrey", fontSize: 20 }}>
+              Время на ход
+            </Text>
+            <View style={{ display: "flex", flexDirection: "row", gap: 15 }}>
+              {[5, 10, 15, null].map((secs) => (
+                <TouchableOpacity
+                  key={secs}
                   style={{
-                    ...styles.button,
-                    borderWidth: 5,
-                    marginTop: 10
+                    backgroundColor:
+                      secForMove === secs ? "grey" : "transparent",
+                    borderRadius: 5,
+                    padding: 5,
                   }}
-                  onPress={saveField}
+                  onPress={() => {
+                    setSecForMove(secs);
+                  }}
                 >
                   <Text
                     style={{
-                      ...styles.buttonText,
+                      color: "lightgrey",
+                      fontSize: 20,
+                      textAlign: "center",
                     }}
                   >
-                    Сохранить поле
+                    {secs ?? "∞"}
                   </Text>
                 </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View
+            style={{
+              width: "100%",
+              height: 2,
+              backgroundColor: "lightgrey",
+            }}
+          ></View>
           <TouchableOpacity
             style={{
               ...styles.button,
@@ -291,15 +478,26 @@ export default function RoomDetails({ navigation, route }: any) {
             }}
             onPress={() => {
               if (roomCode) {
-                socket.send(
-                  JSON.stringify({ type: "update_field", data: { playground } })
-                );
-                navigation.navigate("Room", {
-                  playground,
-                  code: roomCode,
-                  onGoBack: refreshSocket,
-                });
-              } else Alert.alert("Ошибка. Попробуйте ещё раз");
+                const playersCount = playground
+                  .flatMap((row) => row)
+                  .filter((elem) => elem === "p").length;
+
+                if (playersCount > 1) {
+                  socket.send(
+                    JSON.stringify({
+                      type: "update_field",
+                      data: { playground, secondsForMove: secForMove },
+                    })
+                  );
+                  navigation.navigate("Room", {
+                    playground,
+                    code: roomCode,
+                    onGoBack: refreshSocket,
+                  });
+                } else {
+                  Alert.alert("Добавьте игроков на поле");
+                }
+              } else Alert.alert("Ошибка. Попробуйте перезапустить приложение");
             }}
           >
             <Text
@@ -313,7 +511,7 @@ export default function RoomDetails({ navigation, route }: any) {
         </>
       )}
 
-      <View style={{ height: 200 }}></View>
+      <View style={{ height: 350 }}></View>
     </ScrollView>
   );
 }

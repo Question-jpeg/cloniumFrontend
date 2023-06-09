@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -7,6 +8,15 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: 'default',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#FF231F7C',
+  })
+}
 
 export const showNotification = async (name: string, text: string) => {
   

@@ -1,18 +1,17 @@
-// const initial = [[1, 2], [3, 4]]
-// const new_array = Array.from(initial)
-// console.log(new_array);
-// console.log(initial);
-// console.log(new_array === initial);
+// import { ChipTypes } from "./Chip";
 
+// import Chip from "./Chip";
 
-const abc = {'a': 1, 'b': 2, 'c': 3}
+class Chip {
+    constructor(value, ok) {}
+}
 
-for (let what of Object.values(abc)) console.log(what);
+// const printType = (type: ChipTypes) => {
+//     console.log(type);
+// }
 
-delete abc['d']
+// printType(1)
+const chip = new Chip('1', 1)
+const a = { [chip]: "a" };
 
-a = 1
-
-String(a).toString()
-
-console.log(abc);
+console.log(a[chip]);

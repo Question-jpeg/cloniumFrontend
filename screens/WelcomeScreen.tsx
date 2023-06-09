@@ -41,13 +41,13 @@ export default function WelcomeScreen({ navigation }: any) {
           onPress={() => {
             !isEditing && focusInput();
           }}
-          style={{ zIndex: 999 }}
+          style={{ zIndex: 999, elevation: 999 }}
         >
           <TextInput
             pointerEvents={!isEditing ? "none" : "auto"}
             onFocus={() => setIsEditing(true)}
             onEndEditing={() => setIsEditing(false)}
-            onChangeText={(text) => setUsername(text)}
+            onChangeText={(text) => setUsername(text.trim())}
             ref={textInput}
             placeholder="Имя"
             placeholderTextColor="lightgrey"

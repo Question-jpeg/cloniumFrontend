@@ -13,8 +13,20 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "m1-medium",
+        "simulator": true
+      },
+      "android": { 
+        "buildType": "apk" 
       }
+    },
+    "preview2": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "preview3": {
+      "developmentClient": true
     },
     "production": {
       "ios": {

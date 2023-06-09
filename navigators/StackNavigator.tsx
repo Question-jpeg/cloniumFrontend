@@ -4,10 +4,11 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import FieldScreen from './../screens/FieldScreen';
 import RoomScreen from './../screens/RoomScreen';
 import RoomDetails from './../screens/RoomDetails';
+import { colors } from './../game_logic/config';
 
 const Stack = createStackNavigator();
 
-export const Theme = {...DefaultTheme, colors: {...DefaultTheme.colors, background: '#292a2e'}}
+export const Theme = {...DefaultTheme, colors: {...DefaultTheme.colors, background: colors.background}}
 
 export default function StackNavigator() {
   return (

@@ -1,12 +1,11 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import {
+  ScrollView,
   Dimensions,
   View,
   Text,
-  Button,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from "react-native";
 import React from "react";
 import { WebsocketContext } from "./../context/websocket";
@@ -14,10 +13,10 @@ import { shuffle } from "./../utils/shuffle";
 import * as Clipboard from "expo-clipboard";
 import InstructionField from "../components/InstructionField";
 import { AntDesign } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./../game_logic/config";
 import { sendReady } from "../utils/sendReady";
 import { showNotification } from "./../utils/showNotification";
+import ChatComponent from "./../components/ChatComponent";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -30,6 +29,10 @@ export default function RoomScreen({ route, navigation }: any) {
   const [readyPlayers, setReadyPlayers] = useState<any>([]);
   const [isReady, setIsReady] = useState<boolean>(true);
   const [field, setField] = useState<any[][]>();
+  const [host, setHost] = useState<string>();
+
+  const isReadyRef = useRef<boolean>(true);
+  isReadyRef.current = isReady;
 
   const addPlayer = (uid: string, name: string) => {
     setPlayers((players: any) => {
@@ -43,6 +46,11 @@ export default function RoomScreen({ route, navigation }: any) {
       delete updatedPlayers[uid];
       return updatedPlayers;
     });
+    setReadyPlayers((rps: any) => {
+      const updated = { ...rps };
+      delete updated[uid];
+      return updated;
+    });
   };
 
   const refreshRoom = () => {
@@ -51,18 +59,20 @@ export default function RoomScreen({ route, navigation }: any) {
   };
 
   const sendIsReady = () => {
-    sendReady(socket, isReady);
+    sendReady(socket, isReadyRef.current);
   };
 
   const navigateToField = (
     order: string[],
     names_mapping: any,
-    instruction: any
+    instruction: any,
+    secondsForMove: number|null
   ) => {
     navigation.navigate("Field", {
       instruction,
       order,
       names_mapping,
+      secondsForMove,
       onGoBack: refreshRoom,
     });
   };
@@ -77,6 +87,8 @@ export default function RoomScreen({ route, navigation }: any) {
       else if (type === "player_info") {
         const uid = data["uid"];
         const name = data["name"];
+        const isHost = data["is_host"];
+        if (isHost) setHost(uid);
         addPlayer(uid, name);
       } else if (type === "player_left") {
         const uid = data["uid"];
@@ -84,8 +96,11 @@ export default function RoomScreen({ route, navigation }: any) {
       } else if (type === "game_started") {
         const order = data["order"];
         const names_mapping = data["names_mapping"];
-        const instruction = data["field"];
-        navigateToField(order, names_mapping, instruction);
+        const instruction = data["field_data"]['playground'];
+        const timeForMove = data['field_data']['secondsForMove']
+        setReadyPlayers({});
+        setPlayers({});
+        navigateToField(order, names_mapping, instruction, timeForMove);
       } else if (
         (type === "room_destroyed" && username) ||
         type === "disconnected"
@@ -147,161 +162,148 @@ export default function RoomScreen({ route, navigation }: any) {
     );
   };
 
-  const sendMessage = () => {
-    Alert.prompt("Cообщение", "", [
-      { text: "Отмена" },
-      {
-        text: "Отправить",
-        onPress(value?) {
-          socket.send(
-            JSON.stringify({ type: "send_message", data: { text: value } })
-          );
-        },
-      },
-    ]);
-  };
-
   return (
-    <View
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100%",
-      }}
-    >
-      <TouchableOpacity
-        style={{
-          ...styles.button,
-          borderWidth: 5,
-          marginBottom: 30,
-        }}
-        onPress={() => {
-          Clipboard.setStringAsync(code);
-        }}
-      >
-        <Text
-          style={{
-            ...styles.buttonText,
-          }}
-        >
-          Скопировать код комнаты
-        </Text>
-      </TouchableOpacity>
+    <ScrollView contentContainerStyle={{ paddingTop: "30%" }}>
       <View
         style={{
-          width: "100%",
-          height: 2,
-          backgroundColor: "lightgrey",
-          marginBottom: 20,
-        }}
-      ></View>
-      {field && (
-        <InstructionField instruction={field} width={screenWidth / 3} />
-      )}
-      <View
-        style={{
-          width: "100%",
           display: "flex",
-          flexDirection: "row",
           justifyContent: "center",
           alignItems: "center",
-          marginTop: 20,
-          gap: 10,
         }}
       >
-        {!playground && (
-          <>
-            <TouchableOpacity
-              onPress={() => {
-                setIsReady(true);
-                sendReady(socket, true);
-              }}
-              style={{
-                backgroundColor: colors.green,
-                padding: 5,
-                borderRadius: 5,
-              }}
-            >
-              <AntDesign name="like1" size={24} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                setIsReady(false);
-                sendReady(socket, false);
-              }}
-              style={{
-                backgroundColor: colors.red,
-                padding: 5,
-                borderRadius: 5,
-              }}
-            >
-              <AntDesign name="dislike1" size={24} color="white" />
-            </TouchableOpacity>
-          </>
-        )}
         <TouchableOpacity
-          onPress={sendMessage}
           style={{
-            backgroundColor: colors.blue,
-            padding: 5,
-            borderRadius: 5,
-            width: playground ? screenWidth / 3 : "auto",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
+            ...styles.button,
+            borderWidth: 5,
+            marginBottom: 30,
+          }}
+          onPress={() => {
+            Clipboard.setStringAsync(code);
           }}
         >
-          <MaterialCommunityIcons name="chat" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      <View
-        style={{
-          width: "100%",
-          height: 2,
-          backgroundColor: "lightgrey",
-          marginTop: 20,
-          marginBottom: 10,
-        }}
-      ></View>
-
-      {Object.keys(players).map((uid: string) => {
-        const name = players[uid];
-        return (
           <Text
-            ellipsizeMode='clip'
-            numberOfLines={1}
-            style={{ ...styles.text, marginHorizontal: 20 }}
-            key={name}
-          >
-            {readyPlayers[uid] ? "✓ " : "✗ "}
-            {name}
-          </Text>
-        );
-      })}
-
-      <View style={{ flex: 0.5 }}></View>
-
-      {Object.keys(players).length === Object.keys(readyPlayers).length &&
-        playground && (
-          <TouchableOpacity
             style={{
-              ...styles.button,
-              backgroundColor: "#3ee660d6",
-              marginTop: 20,
+              ...styles.buttonText,
             }}
-            onPress={startGame}
           >
-            <Text
-              style={{
-                ...styles.buttonText,
-              }}
-            >
-              Начать игру
-            </Text>
-          </TouchableOpacity>
+            Скопировать код комнаты
+          </Text>
+        </TouchableOpacity>
+        <View
+          style={{
+            width: "100%",
+            height: 2,
+            backgroundColor: "lightgrey",
+            marginBottom: 20,
+          }}
+        ></View>
+        {field && (
+          <InstructionField instruction={field} width={screenWidth / 2} />
         )}
-    </View>
+        <View
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: 20,
+            gap: 10,
+          }}
+        >
+          {!playground && (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsReady(true);
+                  sendReady(socket, true);
+                }}
+                style={{
+                  backgroundColor: colors.green,
+                  padding: 5,
+                  borderRadius: 5,
+                }}
+              >
+                <AntDesign name="like1" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsReady(false);
+                  sendReady(socket, false);
+                }}
+                style={{
+                  backgroundColor: colors.red,
+                  padding: 5,
+                  borderRadius: 5,
+                }}
+              >
+                <AntDesign name="dislike1" size={24} color="white" />
+              </TouchableOpacity>
+            </>
+          )}
+          <ChatComponent
+            style={{ width: playground ? screenWidth / 3 : "auto" }}
+          />
+        </View>
+
+        <View
+          style={{
+            width: "100%",
+            height: 2,
+            backgroundColor: "lightgrey",
+            marginTop: 20,
+            marginBottom: 10,
+          }}
+        ></View>
+
+        {!(host && Object.keys(players).includes(host)) &&
+          Object.keys(players).length > 0 && (
+            <Text style={{ ...styles.text }}>! Создатель вышел !</Text>
+          )}
+        {Object.keys(players).map((uid: string) => {
+          const name = players[uid];
+          return (
+            <Text
+              ellipsizeMode="clip"
+              numberOfLines={1}
+              style={{ ...styles.text, marginHorizontal: 20 }}
+              key={name}
+            >
+              {readyPlayers[uid] ? "✓ " : "✗ "}
+              {name}
+              {uid === host ? " ☆" : ""}
+            </Text>
+          );
+        })}
+        {Object.keys(players).length === 0 && (
+          <Text style={{ ...styles.text }}>...</Text>
+        )}
+
+        <View style={{ flex: 0.5 }}></View>
+
+        {Object.keys(players).length === Object.keys(readyPlayers).length &&
+          Object.keys(players).length > 1 &&
+          playground && (
+            <TouchableOpacity
+              style={{
+                ...styles.button,
+                backgroundColor: "#3ee660d6",
+                marginTop: 20,
+              }}
+              onPress={startGame}
+            >
+              <Text
+                style={{
+                  ...styles.buttonText,
+                }}
+              >
+                Начать игру
+              </Text>
+            </TouchableOpacity>
+          )}
+      </View>
+      <View style={{ height: 300 }}></View>
+    </ScrollView>
   );
 }
 

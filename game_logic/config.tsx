@@ -2,7 +2,8 @@
 export const colors = {
   'blue': "#41D5FD",
   'green': '#3EE660',
-  'red': '#FC74CB'
+  'red': '#FC74CB',
+  'background': '#292a2e'
 }
 
 export const colorMapping: { [key: string]: { background: string; border: string } } =

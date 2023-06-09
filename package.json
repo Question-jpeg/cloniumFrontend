@@ -13,6 +13,7 @@
     "@react-native-clipboard/clipboard": "^1.11.2",
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/stack": "^6.3.16",
+    "@types/react-native": "~0.70.6",
     "apisauce": "^2.1.6",
     "expo": "^48.0.0",
     "expo-clipboard": "~4.1.2",
@@ -20,13 +21,14 @@
     "expo-notifications": "~0.18.1",
     "expo-permissions": "~14.1.1",
     "expo-status-bar": "~1.4.4",
+    "expo-updates": "~0.16.3",
     "react": "18.2.0",
     "react-native": "0.71.3",
+    "react-native-alertbox": "^0.2.11",
+    "react-native-dialog": "^9.3.0",
     "react-native-gesture-handler": "~2.9.0",
     "react-native-safe-area-context": "4.5.0",
-    "react-native-screens": "~3.20.0",
-    "expo-updates": "~0.16.3",
-    "@types/react-native": "~0.70.6"
+    "react-native-screens": "~3.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
